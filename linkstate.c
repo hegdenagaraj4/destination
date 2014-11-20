@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <math.h>
+#include <limits.h>
 #include "debug.h"
 
 #define FILENAME "/home/nag/Documents/topology.txt" /*path to the input file*/
-#define INFINITE -1
+#define INFINITE 9999999
 
 typedef struct _adjtab_
 {
@@ -20,6 +22,7 @@ typedef struct _adjmat_
     int **matrix;
 }AdjMat;
 
+int *parent;
 /*Begin input_network_topology*/
 void input_network_topology(AdjTab * matrix)
 {
@@ -108,65 +111,159 @@ int minimum_distance(int num_vertices,int d[], bool shortest_path[])
     log_entry();
     for(i=0;i<num_vertices;i++)
     {
-        if(shortest_path[i]==false && d[i]<=min)
+        if(shortest_path[i]==false && (d[i]>=min  ))
         {
             min= d[i] ;
             min_index = i;
         }
     }
-    log_exit();
+    log_exit("retval %d",min_index+1);
     return min_index;
 }
+
+
 int printSolution(int d[], int n, int src)
 {
     int i;
     log_entry();
+
+    print("Parent       Child");
+    for(i=0;i<n;i++)
+    {
+        print("parent of %d\t\t%d",i+1 , parent[i]);
+    }
+
     print("Router %d Connection Table", src);
     print("Destination      Cost");
     for(i=0;i<n;i++)
     {
-        print("%d\t\t%d",i , d[i]);
+        print("%d\t\t%d",i+1 , d[i]);
     }
     log_exit();
     return 0;
 }
 
+
+char *strrev(char *str)
+{
+      char *p1, *p2;
+
+      if (! str || ! *str)
+            return str;
+      for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2)
+      {
+            *p1 ^= *p2;
+            *p2 ^= *p1;
+            *p1 ^= *p2;
+      }
+      return str;
+}
+
+void shortest_path_tree( AdjMat *adjMat,int source,int target)
+{
+    int num_vertices=0;
+    int dist[adjMat->no_of_vertices];
+    int prev_dist=0;
+
+    bool shortest_path[adjMat->no_of_vertices];
+    int i=0,min_dist_vertex,j=0;
+    int start, dest;
+    int v ;
+    log_entry();
+    parent = malloc(num_vertices*sizeof(int));
+    start = source -1;
+    dest  = target -1;
+    num_vertices = adjMat->no_of_vertices;
+    for(i=0;i<num_vertices;i++)
+    {
+        dist[i] = INFINITE;
+        shortest_path[i] = false;
+    }
+    v = start;
+    dist[start] =0;
+    while(shortest_path[v]==false)
+    {
+        // min_dist_vertex = minimum_distance(num_vertices,dist,shortest_path);
+        shortest_path[v] =true;
+        for(j=0;j<num_vertices;j++)
+        {
+            if(dist[j] > dist[v]+adjMat->matrix[v][j])
+            {
+                dist[j] = dist[v]+adjMat->matrix[v][j];
+                parent[j] = v;
+            }
+            // if(!shortest_path[j]
+            //     && adjMat->matrix[min_dist_vertex][j])
+            //     // && dist[min_dist_vertex] != INFINITE
+            //     // && dist[min_dist_vertex] + adjMat->matrix[min_dist_vertex][j] <= dist[j] )
+            // {
+            //     dist[j] = dist[min_dist_vertex] + adjMat->matrix[min_dist_vertex][j];
+
+            //     parent[j] = min_dist_vertex;
+            //     myprint("***I am here for min_dist_vertex and minimum_distance of %d*\n",min_dist_vertex,dist[min_dist_vertex]);
+            // }
+            // prev_dist = dist[j];
+        }
+
+        v=1;
+        prev_dist = INFINITE;
+        for(i=0;i<num_vertices;i++)
+        {
+            if((shortest_path[i]==false)&&(prev_dist>dist[i]))
+            {
+                prev_dist =dist[i];
+                v =i;
+            }
+        }
+
+    }
+
+    printSolution(dist,num_vertices,source);
+    log_exit();
+    return;
+}
+
+
+
+/*
+
 void shortest_path_tree(int source, AdjMat *adjMat)
 {
     int num_vertices=0;
-    int d[adjMat->no_of_vertices];
+    int dist[adjMat->no_of_vertices];
     bool shortest_path[adjMat->no_of_vertices];
-    int i=0,min_dist_vertex;
+    int i=0,min_dist_vertex,j=0;
 
     log_entry();
     num_vertices = adjMat->no_of_vertices;
     for(i=0;i<num_vertices;i++)
     {
-        d[i] = INFINITE;
+        dist[i] = INFINITE;
         shortest_path[i] = false;
     }
-    d[source] =0;
+    dist[source] =0;
     for(i=0;i<num_vertices-1;i++)
     {
-        min_dist_vertex = minimum_distance(num_vertices,d,shortest_path);
-        myprint("%d \n",min_dist_vertex);
+        min_dist_vertex = minimum_distance(num_vertices,dist,shortest_path);
+
         shortest_path[min_dist_vertex] =true;
-        // for(j=0;j<num_vertices;j++)
-        // {
-        //     if(!shortest_path[j]
-        //         && adjMat->matrix[min_dist_vertex][j]
-        //         && d[min_dist_vertex] != INFINITE
-        //         && d[min_dist_vertex] + adjMat->matrix[min_dist_vertex][j] < d[j] )
-        //     {
-        //         d[j] = d[min_dist_vertex] + adjMat->matrix[min_dist_vertex][j];
-        //     }
-        // }
+        for(j=0;j<num_vertices;j++)
+        {
+            if(!shortest_path[j]
+                && adjMat->matrix[min_dist_vertex][j]
+                && dist[min_dist_vertex] != INFINITE
+                && dist[min_dist_vertex] + adjMat->matrix[min_dist_vertex][j] < dist[j] )
+            {
+                dist[j] = dist[min_dist_vertex] + adjMat->matrix[min_dist_vertex][j];
+            }
+        }
     }
     // printSolution(d,num_vertices,source);
     log_exit();
     return;
 }
 
+*/
 /*Begin Main*/
 int main(int argc, char const *argv[])
 {
@@ -179,7 +276,7 @@ int main(int argc, char const *argv[])
     while(1)
     {
         print("CS542 Link State Routing Simulator");
-        print("(1) Input Network Topology File\n(2) Select a source\n(3) Select a destination\n(4) Exit\n(5) Show Shortest Path");
+        myprint("(1) Input Network Topology File\n(2) Build a Connection Table\n(3) Shortest Path to Destination Router\n(4) Exit\n");
         scanf("%d",&choice);
         switch(choice)
         {
@@ -193,12 +290,13 @@ int main(int argc, char const *argv[])
                     print("Select source");
                     scanf("%d",&src);
 
-                    shortest_path_tree(src,&adj_mat);
             break;
 
             case 3:
                     print("Select destination");
                     scanf("%d",&dest);
+                    shortest_path_tree(&adj_mat,src,dest);
+                    // print("%d",dijsktra(&adj_mat,src,dest));
             break;
 
             case 4:
